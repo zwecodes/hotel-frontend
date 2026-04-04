@@ -246,9 +246,34 @@ export default function HotelDetailPage() {
       .then(([hotelRes, roomsRes, reviewsRes, ratingRes]) => {
         if (hotelRes.data.success) setHotel(hotelRes.data.data);
         if (roomsRes.data.success) {
-          setRooms(roomsRes.data.data);
+          const fetchedRooms = roomsRes.data.data;
+          setRooms(fetchedRooms);
+
+          // ── FIX B: Restore quantities if user came back from confirm page ──
+          // Check if there's a pending booking in localStorage for THIS hotel
+          try {
+            const raw = localStorage.getItem("pendingBooking");
+            if (raw) {
+              const pending = JSON.parse(raw);
+              // Only restore if it's the same hotel
+              if (String(pending.hotel?.id) === String(id)) {
+                const restored = {};
+                fetchedRooms.forEach(r => {
+                  const match = pending.rooms?.find(pr => pr.room_id === r.id);
+                  restored[r.id] = match ? match.quantity : 0;
+                });
+                setQuantities(restored);
+                setGuests(String(pending.number_of_guests));
+                return; // skip the default zero init below
+              }
+            }
+          } catch {
+            // localStorage parse failed — fall through to default
+          }
+
+          // Default: all quantities = 0
           const init = {};
-          roomsRes.data.data.forEach(r => { init[r.id] = 0; });
+          fetchedRooms.forEach(r => { init[r.id] = 0; });
           setQuantities(init);
         }
         if (reviewsRes.data.success) setReviews(reviewsRes.data.data);
@@ -268,21 +293,33 @@ export default function HotelDetailPage() {
   const totalPerNight = selectedRooms.reduce((s, r) => s + Number(r.price_per_night) * quantities[r.id], 0);
   const grandTotal    = totalPerNight * nights;
 
+  const totalCapacity = selectedRooms.reduce((sum, r) => sum + (r.capacity * quantities[r.id]), 0);
+  const capacityExceeded = selectedRooms.length > 0 && Number(guests) > totalCapacity;
+
   const handleQuantityChange = (roomId, qty) =>
     setQuantities(prev => ({ ...prev, [roomId]: qty }));
 
   const handleBookNow = () => {
     if (!isAuthenticated) { router.push(`/auth/login?redirect=/hotels/${id}`); return; }
     if (selectedRooms.length === 0) { toast.error("Please select at least one room"); return; }
+
     const bookingData = {
       hotel,
       rooms: selectedRooms.map(r => ({
-        room_id: r.id, room_type: r.room_type,
-        quantity: quantities[r.id], price_per_night: r.price_per_night,
+        room_id:        r.id,
+        room_type:      r.room_type,
+        quantity:       quantities[r.id],
+        price_per_night: r.price_per_night,
+        // ── FIX A: Save room images so confirm page can show them ──
+        images:         r.images || [],
       })),
-      check_in_date: checkIn, check_out_date: checkOut,
-      number_of_guests: Number(guests), nights, total_price: grandTotal,
+      check_in_date:    checkIn,
+      check_out_date:   checkOut,
+      number_of_guests: Number(guests),
+      nights,
+      total_price:      grandTotal,
     };
+
     localStorage.setItem("pendingBooking", JSON.stringify(bookingData));
     router.push("/booking/confirm");
   };
@@ -340,7 +377,6 @@ export default function HotelDetailPage() {
     );
   }
 
-  // Google Maps URL built from hotel address + city
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name} ${hotel.address} ${hotel.city}`)}`;
 
   return (
@@ -417,8 +453,6 @@ export default function HotelDetailPage() {
                   Open in Google Maps
                 </a>
               </div>
-
-              {/* Map placeholder */}
               <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="block">
                 <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-100 flex flex-col items-center justify-center mb-4 relative overflow-hidden hover:opacity-90 transition-opacity cursor-pointer">
                   <div className="absolute inset-0 opacity-10"
@@ -434,7 +468,6 @@ export default function HotelDetailPage() {
                   </div>
                 </div>
               </a>
-
               <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
                 <svg className="w-5 h-5 text-[#1a56db] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -638,10 +671,30 @@ export default function HotelDetailPage() {
                     </div>
                   </div>
                 )}
-                <button onClick={handleBookNow}
-                  className="mt-4 w-full py-3 bg-[#1a56db] text-white font-semibold rounded-xl hover:bg-[#1e429f] transition-colors shadow-sm text-sm">
-                  {isAuthenticated ? "Book Now" : "Login to Book"}
-                </button>
+                {capacityExceeded && (
+  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+    <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p className="text-xs text-red-700">
+      <strong>Not enough capacity.</strong> Your selected rooms fit{" "}
+      <strong>{totalCapacity} guest{totalCapacity !== 1 ? "s" : ""}</strong> but you have{" "}
+      <strong>{guests} guest{Number(guests) !== 1 ? "s" : ""}</strong>. Please add more rooms or reduce guests.
+    </p>
+  </div>
+)}
+<button
+  onClick={handleBookNow}
+  disabled={capacityExceeded}
+  className={`mt-4 w-full py-3 font-semibold rounded-xl transition-colors shadow-sm text-sm ${
+    capacityExceeded
+      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+      : "bg-[#1a56db] text-white hover:bg-[#1e429f]"
+  }`}
+>
+  {isAuthenticated ? "Book Now" : "Login to Book"}
+</button>
+                  
                 <p className="text-xs text-center text-gray-400 mt-2">Free cancellation within 24 hours</p>
               </div>
 

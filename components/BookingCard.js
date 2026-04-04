@@ -16,8 +16,9 @@ const STATUS_STYLES = {
 };
 
 const PAYMENT_STYLES = {
-  paid:   "bg-green-50 text-green-700 border-green-200",
-  unpaid: "bg-orange-50 text-orange-600 border-orange-200",
+  paid:         "bg-green-50 text-green-700 border-green-200",
+  unpaid:       "bg-orange-50 text-orange-600 border-orange-200",
+  pay_at_hotel: "bg-purple-50 text-purple-700 border-purple-200",
 };
 
 // ── Live countdown hook ───────────────────────────────────
@@ -53,16 +54,14 @@ function CountdownBadge({ checkInDate, onExpire }) {
 
   if (!timeLeft) return null;
 
-  const isUrgent = timeLeft.totalSeconds < 86400; // under 24 hrs
-  const isCritical = timeLeft.totalSeconds < 3600; // under 1 hr
+  const isUrgent   = timeLeft.totalSeconds < 86400;
+  const isCritical = timeLeft.totalSeconds < 3600;
 
-  if (!isUrgent) return null; // only show within 24hrs
+  if (!isUrgent) return null;
 
   return (
     <div className={`mb-4 rounded-xl px-4 py-3 border flex items-start gap-3 ${
-      isCritical
-        ? "bg-red-50 border-red-200"
-        : "bg-orange-50 border-orange-200"
+      isCritical ? "bg-red-50 border-red-200" : "bg-orange-50 border-orange-200"
     }`}>
       <svg className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isCritical ? "text-red-500" : "text-orange-500"}`}
         fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,6 +86,164 @@ function CountdownBadge({ checkInDate, onExpire }) {
   );
 }
 
+// ── Room Image Lightbox ───────────────────────────────────
+function RoomLightbox({ images, startIndex, roomType, onClose }) {
+  const [activeIndex, setActiveIndex] = useState(startIndex);
+
+  const prev = () => setActiveIndex(i => (i - 1 + images.length) % images.length);
+  const next = () => setActiveIndex(i => (i + 1) % images.length);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "ArrowLeft")  prev();
+      if (e.key === "ArrowRight") next();
+      if (e.key === "Escape")     onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [images.length]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors z-10"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+
+      {/* Main image */}
+      <img
+        src={images[activeIndex].image_url}
+        alt={roomType}
+        className="max-w-4xl max-h-[78vh] w-full object-contain rounded-lg px-16"
+        onClick={e => e.stopPropagation()}
+      />
+
+      {/* Arrows */}
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={e => { e.stopPropagation(); prev(); }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); next(); }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* Counter */}
+      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-white/60 text-sm">
+        {activeIndex + 1} / {images.length}
+      </div>
+
+      {/* Thumbnail strip */}
+      {images.length > 1 && (
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 overflow-x-auto max-w-full"
+          onClick={e => e.stopPropagation()}
+        >
+          {images.map((img, i) => (
+            <button
+              key={img.id}
+              onClick={() => setActiveIndex(i)}
+              className={`flex-shrink-0 w-14 h-10 rounded-md overflow-hidden border-2 transition-all ${
+                i === activeIndex ? "border-white" : "border-transparent opacity-50 hover:opacity-80"
+              }`}
+            >
+              <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Room row with thumbnail ───────────────────────────────
+function RoomRow({ room, nights }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const hasImages = room.images && room.images.length > 0;
+  const thumbUrl  = hasImages ? room.images[0].image_url : null;
+
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        {/* Thumbnail */}
+        {hasImages ? (
+          <button
+            onClick={() => setLightboxOpen(true)}
+            className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-gray-100 hover:opacity-90 transition-opacity relative group"
+            title="View room photos"
+          >
+            <img src={thumbUrl} alt={room.room_type} className="w-full h-full object-cover" />
+            {room.images.length > 1 && (
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+            )}
+          </button>
+        ) : (
+          <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gray-100 border border-gray-100 flex items-center justify-center">
+            <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+          </div>
+        )}
+
+        {/* Room info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-800 truncate">
+            {room.room_type} × {room.quantity}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            ฿${Number(room.price_per_night).toLocaleString()}/night
+            {nights > 1 && (
+              <span className="text-gray-300"> × {nights}n = ฿${Number(room.total_price).toLocaleString()}</span>
+            )}
+          </p>
+          {hasImages && room.images.length > 1 && (
+            <button
+              onClick={() => setLightboxOpen(true)}
+              className="text-xs text-[#1a56db] hover:underline mt-0.5"
+            >
+              {room.images.length} photos
+            </button>
+          )}
+        </div>
+      </div>
+
+      {lightboxOpen && (
+        <RoomLightbox
+          images={room.images}
+          startIndex={0}
+          roomType={room.room_type}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
 // ── Main BookingCard ──────────────────────────────────────
 export default function BookingCard({ booking, onCancel, onPay, cancelling, paying, onExpired }) {
   const {
@@ -100,9 +257,11 @@ export default function BookingCard({ booking, onCancel, onPay, cancelling, payi
   const hoursUntilCheckIn = (checkInTime - now) / (1000 * 60 * 60);
 
   const canCancel =
-    status !== "cancelled" &&
-    payment_status === "unpaid" &&
-    hoursUntilCheckIn > 24;
+  status !== "cancelled" &&
+  (payment_status === "unpaid" || payment_status === "pay_at_hotel") &&
+  hoursUntilCheckIn > 24;
+
+  // console.log("canCancel:", canCancel, { status, payment_status, hoursUntilCheckIn });
 
   const canPay = payment_status === "unpaid" && status !== "cancelled";
 
@@ -164,8 +323,8 @@ export default function BookingCard({ booking, onCancel, onPay, cancelling, payi
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
               {status}
             </span>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${PAYMENT_STYLES[payment_status] || PAYMENT_STYLES.unpaid}`}>
-              {payment_status}
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${PAYMENT_STYLES[payment_status] || PAYMENT_STYLES.unpaid}`}>
+              {payment_status === "pay_at_hotel" ? "Pay at Hotel" : payment_status.charAt(0).toUpperCase() + payment_status.slice(1)}
             </span>
           </div>
         </div>
@@ -188,24 +347,11 @@ export default function BookingCard({ booking, onCancel, onPay, cancelling, payi
           </div>
         </div>
 
-        {/* Rooms */}
+        {/* Rooms with thumbnails */}
         {rooms?.length > 0 && (
-          <div className="mb-4 space-y-1.5">
+          <div className="mb-4 space-y-3">
             {rooms.map((room, i) => (
-              <div key={i} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                  </svg>
-                  <span>{room.room_type} × {room.quantity}</span>
-                </div>
-                <span className="text-gray-500 text-xs">
-                  ${Number(room.price_per_night).toLocaleString()}/night
-                  {nights > 1 && (
-                    <span className="text-gray-400"> × {nights}n = ${Number(room.total_price).toLocaleString()}</span>
-                  )}
-                </span>
-              </div>
+              <RoomRow key={i} room={room} nights={nights} />
             ))}
           </div>
         )}
@@ -214,7 +360,7 @@ export default function BookingCard({ booking, onCancel, onPay, cancelling, payi
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-400">Total ({nights} night{nights > 1 ? "s" : ""})</p>
-            <p className="text-lg font-bold text-[#1a56db]">${Number(total_price).toLocaleString()}</p>
+            <p className="text-lg font-bold text-[#1a56db]">฿{Number(total_price).toLocaleString()}</p>
           </div>
           <div className="flex items-center gap-2">
             {canCancel && (
@@ -223,11 +369,12 @@ export default function BookingCard({ booking, onCancel, onPay, cancelling, payi
                 {cancelling ? "Cancelling..." : "Cancel"}
               </button>
             )}
+            
             {canPay && (
               <button onClick={() => onPay(id)} disabled={paying}
                 className={`px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1.5 ${
-                  isCritical ? "bg-red-500 hover:bg-red-600" : 
-                  showTimer ? "bg-orange-500 hover:bg-orange-600" :
+                  isCritical ? "bg-red-500 hover:bg-red-600" :
+                  showTimer  ? "bg-orange-500 hover:bg-orange-600" :
                   "bg-[#1a56db] hover:bg-[#1e429f]"
                 }`}>
                 {paying ? (
