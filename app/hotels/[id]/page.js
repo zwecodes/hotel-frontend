@@ -57,123 +57,190 @@ const AMENITIES = [
   { icon: (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>), label: "Non-smoking Rooms" },
 ];
 
-// ── Hotel Gallery ─────────────────────────────────────────
-function HotelGallery({ images, hotelName, hotelId }) {
-  const [activeIndex, setActiveIndex]   = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-
-  const displayImages = images && images.length > 0
-    ? images
-    : [{ id: "fallback", image_url: getHotelImage(Number(hotelId)), is_primary: 1 }];
-
-  const activeImage = displayImages[activeIndex];
-  const prev = () => setActiveIndex(i => (i - 1 + displayImages.length) % displayImages.length);
-  const next = () => setActiveIndex(i => (i + 1) % displayImages.length);
+// ── Lightbox ──────────────────────────────────────────────
+function Lightbox({ images, startIndex, onClose }) {
+  const [activeIndex, setActiveIndex] = useState(startIndex);
+  const prev = () => setActiveIndex(i => (i - 1 + images.length) % images.length);
+  const next = () => setActiveIndex(i => (i + 1) % images.length);
 
   useEffect(() => {
-    if (!lightboxOpen) return;
     const handler = (e) => {
       if (e.key === "ArrowLeft")  prev();
       if (e.key === "ArrowRight") next();
-      if (e.key === "Escape")     setLightboxOpen(false);
+      if (e.key === "Escape")     onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [lightboxOpen, displayImages.length]);
+  }, [images.length]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={onClose}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <span className="text-white/70 text-sm">{activeIndex + 1} / {images.length}</span>
+        <button onClick={onClose}
+          className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Main image */}
+      <div className="flex-1 flex items-center justify-center px-16 relative" onClick={e => e.stopPropagation()}>
+        <button onClick={prev}
+          className="absolute left-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <img src={images[activeIndex].image_url} alt=""
+          className="max-w-5xl max-h-[75vh] w-full object-contain rounded-xl shadow-2xl" />
+        <button onClick={next}
+          className="absolute right-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Thumbnail strip */}
+      <div className="flex-shrink-0 flex gap-2 justify-center px-4 py-4 overflow-x-auto"
+        onClick={e => e.stopPropagation()}>
+        {images.map((img, i) => (
+          <button key={img.id ?? i} onClick={() => setActiveIndex(i)}
+            className={`flex-shrink-0 w-16 h-11 rounded-lg overflow-hidden border-2 transition-all ${i === activeIndex ? "border-white opacity-100" : "border-transparent opacity-40 hover:opacity-70"}`}>
+            <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Agoda-style Grid Gallery ──────────────────────────────
+function HotelGallery({ images, hotelName, hotelId }) {
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [mobileIndex, setMobileIndex]     = useState(0);
+
+  const displayImages = images && images.length > 0
+    ? images
+    : [{ id: "fallback", image_url: getHotelImage(Number(hotelId)) }];
+
+  const primary  = displayImages[0];
+  const secondary = displayImages.slice(1, 5); // up to 4 secondary images
+
+  const mobilePrev = () => setMobileIndex(i => (i - 1 + displayImages.length) % displayImages.length);
+  const mobileNext = () => setMobileIndex(i => (i + 1) % displayImages.length);
 
   return (
     <>
-      <div className="relative h-64 sm:h-80 lg:h-[420px] bg-gray-900 overflow-hidden">
-        <img src={activeImage.image_url} alt={hotelName}
-          className="w-full h-full object-cover opacity-90 cursor-pointer"
-          onClick={() => setLightboxOpen(true)} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
+      {/* ── Desktop grid (hidden on mobile) ── */}
+      <div className="hidden sm:block bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-0">
+          {displayImages.length === 1 ? (
+            // Single image — full width
+            <div className="relative h-[420px] rounded-2xl overflow-hidden cursor-pointer group"
+              onClick={() => setLightboxIndex(0)}>
+              <img src={primary.image_url} alt={hotelName}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
+            </div>
+          ) : (
+            // Grid layout
+            <div className={`grid gap-2 h-[420px] rounded-2xl overflow-hidden ${
+              secondary.length === 0 ? "grid-cols-1" :
+              secondary.length === 1 ? "grid-cols-2" :
+              secondary.length <= 3  ? "grid-cols-3" :
+              "grid-cols-[3fr_1fr_1fr]"
+            }`}>
+              {/* Primary — large left */}
+              <div className="relative cursor-pointer group row-span-2 overflow-hidden"
+                onClick={() => setLightboxIndex(0)}>
+                <img src={primary.image_url} alt={hotelName}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-black/20 transition-colors" />
+              </div>
+
+              {/* Secondary images — right grid */}
+              {secondary.map((img, i) => (
+                <div key={img.id ?? i}
+                  className={`relative cursor-pointer group overflow-hidden ${
+                    // Last visible cell gets the "view all" overlay
+                    i === secondary.length - 1 && displayImages.length > 5 ? "relative" : ""
+                  }`}
+                  onClick={() => setLightboxIndex(i + 1)}>
+                  <img src={img.image_url} alt=""
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0 bg-black/5 group-hover:bg-black/20 transition-colors" />
+                  {/* "View all" overlay on last cell */}
+                  {i === secondary.length - 1 && displayImages.length > 5 && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5 group-hover:bg-black/60 transition-colors">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                      <span className="text-white font-bold text-sm">+{displayImages.length - 5} more</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* View all photos button */}
+          <div className="flex items-center justify-between py-3">
+            <h1 className="text-xl font-bold text-white">{hotelName}</h1>
+            {displayImages.length > 1 && (
+              <button onClick={() => setLightboxIndex(0)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-xl transition-colors border border-white/20">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                View all {displayImages.length} photos
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile slider (shown on small screens only) ── */}
+      <div className="sm:hidden relative h-64 bg-gray-900 overflow-hidden">
+        <img src={displayImages[mobileIndex].image_url} alt={hotelName}
+          className="w-full h-full object-cover" onClick={() => setLightboxIndex(mobileIndex)} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
 
         {displayImages.length > 1 && (
           <>
-            <button onClick={prev}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onClick={mobilePrev}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 text-white flex items-center justify-center">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/>
               </svg>
             </button>
-            <button onClick={next}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button onClick={mobileNext}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 text-white flex items-center justify-center">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
               </svg>
             </button>
-            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {displayImages.map((_, i) => (
-                <button key={i} onClick={() => setActiveIndex(i)}
-                  className={`h-1.5 rounded-full transition-all ${i === activeIndex ? "bg-white w-5" : "bg-white/50 w-1.5"}`} />
-              ))}
+            <div className="absolute top-3 right-3 bg-black/40 text-white text-xs px-2 py-0.5 rounded-full">
+              {mobileIndex + 1} / {displayImages.length}
             </div>
           </>
         )}
 
-        {displayImages.length > 1 && (
-          <button onClick={() => setLightboxOpen(true)}
-            className="absolute bottom-20 right-4 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-lg shadow hover:bg-white transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
-            View all {displayImages.length} photos
-          </button>
-        )}
-
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-5">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg">{hotelName}</h1>
-          </div>
-        </div>
-
-        <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">
-          {activeIndex + 1} / {displayImages.length}
+        <div className="absolute bottom-4 left-4">
+          <h1 className="text-xl font-bold text-white drop-shadow-lg">{hotelName}</h1>
         </div>
       </div>
 
-      {displayImages.length > 1 && (
-        <div className="bg-gray-900 px-4 py-2.5 flex gap-2 overflow-x-auto">
-          <div className="max-w-7xl mx-auto flex gap-2">
-            {displayImages.map((img, i) => (
-              <button key={img.id} onClick={() => setActiveIndex(i)}
-                className={`flex-shrink-0 w-16 h-11 rounded-md overflow-hidden border-2 transition-all ${i === activeIndex ? "border-white" : "border-transparent opacity-50 hover:opacity-80"}`}>
-                <img src={img.image_url} alt="" className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {lightboxOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-          onClick={() => setLightboxOpen(false)}>
-          <button onClick={e => { e.stopPropagation(); prev(); }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7"/>
-            </svg>
-          </button>
-          <img src={activeImage.image_url} alt={hotelName}
-            className="max-w-5xl max-h-[88vh] w-full object-contain rounded-lg"
-            onClick={e => e.stopPropagation()} />
-          <button onClick={e => { e.stopPropagation(); next(); }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
-          <button onClick={() => setLightboxOpen(false)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/60 text-sm">
-            {activeIndex + 1} / {displayImages.length}
-          </div>
-        </div>
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={displayImages}
+          startIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
     </>
   );
@@ -222,8 +289,7 @@ function ReviewCard({ review, currentUserId, onUpdated }) {
     setSubmitting(true);
     try {
       const res = await api.put(`/api/reviews/${review.id}`, {
-        rating: editRating,
-        comment: editComment.trim(),
+        rating: editRating, comment: editComment.trim(),
       });
       if (res.data.success) {
         toast.success("Review updated!");
@@ -232,9 +298,7 @@ function ReviewCard({ review, currentUserId, onUpdated }) {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update review");
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -252,10 +316,8 @@ function ReviewCard({ review, currentUserId, onUpdated }) {
         <div className="flex items-center gap-2">
           {!editing && <StarRating rating={review.rating} size="sm" />}
           {isOwner && !editing && (
-            <button
-              onClick={() => { setEditing(true); setEditRating(review.rating); setEditComment(review.comment); }}
-              className="flex items-center gap-1 text-xs text-[#1a56db] hover:underline font-medium ml-1"
-            >
+            <button onClick={() => { setEditing(true); setEditRating(review.rating); setEditComment(review.comment); }}
+              className="flex items-center gap-1 text-xs text-[#1a56db] hover:underline font-medium ml-1">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
               </svg>
@@ -264,7 +326,6 @@ function ReviewCard({ review, currentUserId, onUpdated }) {
           )}
         </div>
       </div>
-
       {editing ? (
         <div className="space-y-3">
           <div>
@@ -273,26 +334,16 @@ function ReviewCard({ review, currentUserId, onUpdated }) {
           </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Comment</label>
-            <textarea
-              value={editComment}
-              onChange={e => setEditComment(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] resize-none"
-            />
+            <textarea value={editComment} onChange={e => setEditComment(e.target.value)}
+              rows={3} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] resize-none"/>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleSave}
-              disabled={submitting}
-              className="px-4 py-2 bg-[#1a56db] text-white text-sm font-semibold rounded-lg hover:bg-[#1e429f] disabled:opacity-60 transition-colors"
-            >
+            <button onClick={handleSave} disabled={submitting}
+              className="px-4 py-2 bg-[#1a56db] text-white text-sm font-semibold rounded-lg hover:bg-[#1e429f] disabled:opacity-60 transition-colors">
               {submitting ? "Saving..." : "Save Changes"}
             </button>
-            <button
-              onClick={() => setEditing(false)}
-              disabled={submitting}
-              className="px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
+            <button onClick={() => setEditing(false)} disabled={submitting}
+              className="px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
               Cancel
             </button>
           </div>
@@ -344,7 +395,6 @@ export default function HotelDetailPage() {
         if (roomsRes.data.success) {
           const fetchedRooms = roomsRes.data.data;
           setRooms(fetchedRooms);
-
           try {
             const raw = localStorage.getItem("pendingBooking");
             if (raw) {
@@ -360,10 +410,7 @@ export default function HotelDetailPage() {
                 return;
               }
             }
-          } catch {
-            // fall through to default
-          }
-
+          } catch { /* fall through */ }
           const init = {};
           fetchedRooms.forEach(r => { init[r.id] = 0; });
           setQuantities(init);
@@ -381,11 +428,10 @@ export default function HotelDetailPage() {
       : 1
   );
 
-  const selectedRooms = rooms.filter(r => quantities[r.id] > 0);
-  const totalPerNight = selectedRooms.reduce((s, r) => s + Number(r.price_per_night) * quantities[r.id], 0);
-  const grandTotal    = totalPerNight * nights;
-
-  const totalCapacity = selectedRooms.reduce((sum, r) => sum + (r.capacity * quantities[r.id]), 0);
+  const selectedRooms  = rooms.filter(r => quantities[r.id] > 0);
+  const totalPerNight  = selectedRooms.reduce((s, r) => s + Number(r.price_per_night) * quantities[r.id], 0);
+  const grandTotal     = totalPerNight * nights;
+  const totalCapacity  = selectedRooms.reduce((sum, r) => sum + (r.capacity * quantities[r.id]), 0);
   const capacityExceeded = selectedRooms.length > 0 && Number(guests) > totalCapacity;
 
   const handleQuantityChange = (roomId, qty) =>
@@ -394,23 +440,16 @@ export default function HotelDetailPage() {
   const handleBookNow = () => {
     if (!isAuthenticated) { router.push(`/auth/login?redirect=/hotels/${id}`); return; }
     if (selectedRooms.length === 0) { toast.error("Please select at least one room"); return; }
-
     const bookingData = {
       hotel,
       rooms: selectedRooms.map(r => ({
-        room_id:         r.id,
-        room_type:       r.room_type,
-        quantity:        quantities[r.id],
-        price_per_night: r.price_per_night,
-        images:          r.images || [],
+        room_id: r.id, room_type: r.room_type,
+        quantity: quantities[r.id], price_per_night: r.price_per_night,
+        images: r.images || [],
       })),
-      check_in_date:    checkIn,
-      check_out_date:   checkOut,
-      number_of_guests: Number(guests),
-      nights,
-      total_price:      grandTotal,
+      check_in_date: checkIn, check_out_date: checkOut,
+      number_of_guests: Number(guests), nights, total_price: grandTotal,
     };
-
     localStorage.setItem("pendingBooking", JSON.stringify(bookingData));
     router.push("/booking/confirm");
   };
@@ -425,14 +464,7 @@ export default function HotelDetailPage() {
       });
       if (res.data.success) {
         toast.success("Review submitted!");
-        setReviews(prev => [{
-          id: res.data.review_id,
-          user_id: user?.id,
-          rating: reviewRating,
-          comment: reviewComment.trim(),
-          user_name: user?.name || "You",
-          created_at: new Date().toISOString(),
-        }, ...prev]);
+        setReviews(prev => [{ id: res.data.review_id, user_id: user?.id, rating: reviewRating, comment: reviewComment.trim(), user_name: user?.name || "You", created_at: new Date().toISOString() }, ...prev]);
         setRatingData(prev => {
           if (!prev) return { average_rating: reviewRating, total_reviews: 1 };
           const newTotal = Number(prev.total_reviews) + 1;
@@ -449,9 +481,14 @@ export default function HotelDetailPage() {
   if (loading) {
     return (
       <div className="animate-pulse">
-        <div className="h-[420px] bg-gray-200 w-full" />
+        <div className="hidden sm:block bg-gray-900 px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="h-[420px] bg-gray-700 rounded-2xl" />
+            <div className="h-12 mt-3" />
+          </div>
+        </div>
+        <div className="sm:hidden h-64 bg-gray-200" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-          <div className="h-6 bg-gray-200 rounded w-1/3" />
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
               <div className="h-40 bg-gray-200 rounded-xl" />
@@ -468,9 +505,7 @@ export default function HotelDetailPage() {
     return (
       <div className="text-center py-24 text-gray-400">
         <p className="text-lg">Hotel not found.</p>
-        <button onClick={() => router.push("/hotels")} className="mt-4 text-[#1a56db] underline text-sm">
-          Back to Hotels
-        </button>
+        <button onClick={() => router.push("/hotels")} className="mt-4 text-[#1a56db] underline text-sm">Back to Hotels</button>
       </div>
     );
   }
@@ -517,7 +552,7 @@ export default function HotelDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
 
-          {/* ── Left column (2/3) ── */}
+          {/* ── Left column ── */}
           <div className="lg:col-span-2 space-y-8">
 
             {/* About + Amenities */}
@@ -529,8 +564,7 @@ export default function HotelDetailPage() {
               <h2 className="text-lg font-bold text-gray-900 mb-4">Amenities</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {AMENITIES.map((a) => (
-                  <div key={a.label}
-                    className="flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                  <div key={a.label} className="flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100 text-center">
                     <div className="text-[#1a56db]">{a.icon}</div>
                     <span className="text-xs font-medium text-gray-600 leading-tight">{a.label}</span>
                   </div>
@@ -552,8 +586,7 @@ export default function HotelDetailPage() {
               </div>
               <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="block">
                 <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-100 flex flex-col items-center justify-center mb-4 relative overflow-hidden hover:opacity-90 transition-opacity cursor-pointer">
-                  <div className="absolute inset-0 opacity-10"
-                    style={{ backgroundImage: "repeating-linear-gradient(0deg,#1a56db,#1a56db 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#1a56db,#1a56db 1px,transparent 1px,transparent 40px)" }} />
+                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(0deg,#1a56db,#1a56db 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#1a56db,#1a56db 1px,transparent 1px,transparent 40px)" }} />
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-10 h-10 bg-[#1a56db] rounded-full flex items-center justify-center shadow-lg">
                       <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -603,15 +636,13 @@ export default function HotelDetailPage() {
 
             {/* Rooms */}
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Available Rooms</h2>
-                  {rooms.length > 0 && (
-                    <p className="text-sm text-gray-400 mt-0.5">
-                      {rooms.length} room type{rooms.length !== 1 ? "s" : ""} · sorted by price
-                    </p>
-                  )}
-                </div>
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Available Rooms</h2>
+                {rooms.length > 0 && (
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    {rooms.length} room type{rooms.length !== 1 ? "s" : ""} · sorted by price
+                  </p>
+                )}
               </div>
               {rooms.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-gray-400">
@@ -637,13 +668,11 @@ export default function HotelDetailPage() {
                 Guest Reviews
                 {reviews.length > 0 && <span className="ml-2 text-sm font-normal text-gray-400">({reviews.length})</span>}
               </h2>
-
               {ratingData && Number(ratingData.total_reviews) > 0 && (
                 <div className="mb-5">
                   <ReviewSummary averageRating={ratingData.average_rating} totalReviews={ratingData.total_reviews} />
                 </div>
               )}
-
               {isAuthenticated && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-5 shadow-sm">
                   <h3 className="font-semibold text-gray-800 mb-4">Write a Review</h3>
@@ -665,7 +694,6 @@ export default function HotelDetailPage() {
                   </form>
                 </div>
               )}
-
               {reviews.length === 0 ? (
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center text-gray-400 shadow-sm">
                   <p className="text-sm">No reviews yet. Be the first to review!</p>
@@ -673,14 +701,9 @@ export default function HotelDetailPage() {
               ) : (
                 <div className="space-y-3">
                   {reviews.map(review => (
-                    <ReviewCard
-                      key={review.id}
-                      review={review}
-                      currentUserId={user?.id}
+                    <ReviewCard key={review.id} review={review} currentUserId={user?.id}
                       onUpdated={(updatedReview) => {
-                        setReviews(prev => prev.map(r =>
-                          r.id === updatedReview.id ? { ...r, ...updatedReview } : r
-                        ));
+                        setReviews(prev => prev.map(r => r.id === updatedReview.id ? { ...r, ...updatedReview } : r));
                         setRatingData(prev => {
                           if (!prev) return prev;
                           const others = reviews.filter(r => r.id !== updatedReview.id);
@@ -698,8 +721,6 @@ export default function HotelDetailPage() {
           {/* ── Right column — sticky booking panel ── */}
           <div className="lg:col-span-1">
             <div className="sticky top-6 space-y-4">
-
-              {/* Date & Guest picker */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h2 className="text-base font-bold text-gray-900 mb-4">Select Your Stay</h2>
                 <div className="space-y-3">
@@ -743,7 +764,6 @@ export default function HotelDetailPage() {
                 )}
               </div>
 
-              {/* Price summary */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h3 className="text-sm font-bold text-gray-900 mb-3">Price Summary</h3>
                 {selectedRooms.length === 0 ? (
@@ -775,27 +795,19 @@ export default function HotelDetailPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <p className="text-xs text-red-700">
-                      <strong>Not enough capacity.</strong> Selected rooms fit{" "}
-                      <strong>{totalCapacity} guest{totalCapacity !== 1 ? "s" : ""}</strong> but you have{" "}
-                      <strong>{guests} guest{Number(guests) !== 1 ? "s" : ""}</strong>. Add more rooms or reduce guests.
+                      <strong>Not enough capacity.</strong> Selected rooms fit <strong>{totalCapacity} guest{totalCapacity !== 1 ? "s" : ""}</strong> but you have <strong>{guests} guest{Number(guests) !== 1 ? "s" : ""}</strong>. Add more rooms or reduce guests.
                     </p>
                   </div>
                 )}
-                <button
-                  onClick={handleBookNow}
-                  disabled={capacityExceeded}
+                <button onClick={handleBookNow} disabled={capacityExceeded}
                   className={`mt-4 w-full py-3 font-semibold rounded-xl transition-colors shadow-sm text-sm ${
-                    capacityExceeded
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-[#1a56db] text-white hover:bg-[#1e429f]"
-                  }`}
-                >
+                    capacityExceeded ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#1a56db] text-white hover:bg-[#1e429f]"
+                  }`}>
                   {isAuthenticated ? "Book Now" : "Login to Book"}
                 </button>
                 <p className="text-xs text-center text-gray-400 mt-2">Free cancellation within 24 hours</p>
               </div>
 
-              {/* Quick contact */}
               {hotel.phone_number && (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
                   <div className="w-9 h-9 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
@@ -813,7 +825,6 @@ export default function HotelDetailPage() {
               )}
             </div>
           </div>
-
         </div>
       </div>
     </div>
