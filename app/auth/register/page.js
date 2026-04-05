@@ -6,177 +6,322 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 
+const FEATURES = [
+  {
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+      </svg>
+    ),
+    title: "10,000+ Hotels",
+    desc: "Find the perfect stay anywhere in the world",
+  },
+  {
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    ),
+    title: "Best Price Guarantee",
+    desc: "We match any lower price you find online",
+  },
+  {
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+      </svg>
+    ),
+    title: "Free Cancellation",
+    desc: "Plans change — cancel for free within 24 hours",
+  },
+];
+
+function PasswordStrength({ password }) {
+  if (!password) return null;
+  const strength = password.length < 6 ? 1 : password.length < 9 ? 2 : 3;
+  const labels = ["", "Weak", "Fair", "Strong"];
+  const colors = ["", "bg-red-400", "bg-yellow-400", "bg-green-400"];
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5">
+      {[1, 2, 3].map(i => (
+        <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= strength ? colors[strength] : "bg-gray-100"}`} />
+      ))}
+      <span className="text-xs text-gray-400 ml-1">{labels[strength]}</span>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [loading, setLoading] = useState(false);
+  const [form, setForm]             = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [errors, setErrors]         = useState({});
+  const [loading, setLoading]       = useState(false);
+  const [showPass, setShowPass]     = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const set = (k, v) => {
+    setForm(prev => ({ ...prev, [k]: v }));
+    setErrors(prev => ({ ...prev, [k]: "" }));
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!form.name.trim()) e.name = "Full name is required";
+    else if (form.name.trim().length < 2) e.name = "Name must be at least 2 characters";
+    if (!form.email.trim()) e.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Invalid email address";
+    if (!form.password) e.password = "Password is required";
+    else if (form.password.length < 6) e.password = "Password must be at least 6 characters";
+    if (!form.confirmPassword) e.confirmPassword = "Please confirm your password";
+    else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
+    return e;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
     try {
-      const res = await api.post("/api/auth/register", form);
+      const res = await api.post("/api/auth/register", {
+        name: form.name, email: form.email, password: form.password,
+      });
       if (res.data.success) {
         toast.success("Account created! Please sign in.");
         router.push("/auth/login");
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Registration failed. Please try again.");
+      const msg = err.response?.data?.message || "Registration failed. Please try again.";
+      if (msg.toLowerCase().includes("email")) setErrors({ email: msg });
+      else toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+  const inputCls = (field) =>
+    `w-full pl-10 pr-11 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] focus:border-transparent transition-shadow ${errors[field] ? "border-red-400 bg-red-50" : "border-gray-200"}`;
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-[#1a56db] rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+  const ErrorMsg = ({ field }) => errors[field] ? (
+    <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+      <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+      </svg>
+      {errors[field]}
+    </p>
+  ) : null;
+
+  return (
+    <div className="min-h-screen flex">
+
+      {/* ── Left panel ── */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1a56db] to-[#1e429f] flex-col justify-between p-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+        </div>
+
+        <div className="relative z-10">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/>
-                <path d="M9 21V12h6v9" fill="#1a56db"/>
               </svg>
             </div>
-            <span className="text-2xl font-bold text-gray-900">
-              Hotel<span className="text-[#1a56db]">Book</span>
-            </span>
+            <span className="text-2xl font-bold text-white">HotelBook</span>
           </Link>
-          <h1 className="text-xl font-bold text-gray-900 mt-6 mb-1">Create your account</h1>
-          <p className="text-gray-500 text-sm">Start booking hotels in minutes</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="relative z-10 space-y-8">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-3">
+              Join thousands of<br />happy travelers
+            </h2>
+            <p className="text-blue-100 text-base leading-relaxed">
+              Create your free account and start booking the best hotels at the best prices.
+            </p>
+          </div>
 
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Full name
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  placeholder="John Doe"
-                  required
-                  autoComplete="name"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] focus:border-transparent transition-shadow"
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email address
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                  </svg>
-                </span>
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="you@example.com"
-                  required
-                  autoComplete="email"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] focus:border-transparent transition-shadow"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </span>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  placeholder="Min. 6 characters"
-                  required
-                  autoComplete="new-password"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] focus:border-transparent transition-shadow"
-                />
-              </div>
-              {/* Password strength hint */}
-              {form.password.length > 0 && (
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-1 flex-1 rounded-full transition-colors ${
-                        form.password.length >= (i + 1) * 3
-                          ? form.password.length >= 9 ? "bg-green-400"
-                            : form.password.length >= 6 ? "bg-yellow-400"
-                            : "bg-red-400"
-                          : "bg-gray-100"
-                      }`}
-                    />
-                  ))}
-                  <span className="text-xs text-gray-400 ml-1">
-                    {form.password.length < 6 ? "Weak" : form.password.length < 9 ? "Fair" : "Strong"}
-                  </span>
+          <div className="space-y-5">
+            {FEATURES.map(f => (
+              <div key={f.title} className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0 text-white">
+                  {f.icon}
                 </div>
-              )}
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-[#1a56db] text-white font-semibold rounded-lg hover:bg-[#1e429f] disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center gap-2 mt-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                  </svg>
-                  Creating account...
-                </>
-              ) : "Create Account"}
-            </button>
-          </form>
+                <div>
+                  <p className="text-white font-semibold text-sm">{f.title}</p>
+                  <p className="text-blue-100 text-xs mt-0.5">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Footer link */}
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{" "}
-          <Link href="/auth/login" className="text-[#1a56db] font-semibold hover:underline">
-            Sign in
-          </Link>
-        </p>
+        <div className="relative z-10">
+          <p className="text-blue-200 text-xs">© 2026 HotelBook. All rights reserved.</p>
+        </div>
+      </div>
+
+      {/* ── Right panel ── */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12 bg-gray-50 overflow-y-auto">
+        <div className="w-full max-w-md">
+
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <Link href="/" className="inline-flex items-center gap-2">
+              <div className="w-9 h-9 bg-[#1a56db] rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/>
+                </svg>
+              </div>
+              <span className="text-xl font-bold text-gray-900">Hotel<span className="text-[#1a56db]">Book</span></span>
+            </Link>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
+            <p className="text-gray-500 text-sm mt-1">Start booking hotels in minutes — it&apos;s free</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+
+              {/* Full name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                  </span>
+                  <input type="text" value={form.name}
+                    onChange={e => set("name", e.target.value)}
+                    placeholder="John Doe" autoComplete="name"
+                    className={inputCls("name")}/>
+                </div>
+                <ErrorMsg field="name" />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                    </svg>
+                  </span>
+                  <input type="email" value={form.email}
+                    onChange={e => set("email", e.target.value)}
+                    placeholder="you@example.com" autoComplete="email"
+                    className={inputCls("email")}/>
+                </div>
+                <ErrorMsg field="email" />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                  </span>
+                  <input type={showPass ? "text" : "password"} value={form.password}
+                    onChange={e => set("password", e.target.value)}
+                    placeholder="Min. 6 characters" autoComplete="new-password"
+                    className={inputCls("password")}/>
+                  <button type="button" onClick={() => setShowPass(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                    {showPass ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <PasswordStrength password={form.password} />
+                <ErrorMsg field="password" />
+              </div>
+
+              {/* Confirm password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm password</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                  </span>
+                  <input type={showConfirm ? "text" : "password"} value={form.confirmPassword}
+                    onChange={e => set("confirmPassword", e.target.value)}
+                    placeholder="Re-enter your password" autoComplete="new-password"
+                    className={inputCls("confirmPassword")}/>
+                  <button type="button" onClick={() => setShowConfirm(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                    {showConfirm ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {/* Match indicator */}
+                {form.confirmPassword && form.password && (
+                  <p className={`text-xs mt-1.5 flex items-center gap-1 ${form.password === form.confirmPassword ? "text-green-600" : "text-red-500"}`}>
+                    {form.password === form.confirmPassword ? (
+                      <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>Passwords match</>
+                    ) : (
+                      <><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>Passwords do not match</>
+                    )}
+                  </p>
+                )}
+                <ErrorMsg field="confirmPassword" />
+              </div>
+
+              {/* Submit */}
+              <button type="submit" disabled={loading}
+                className="w-full py-3 bg-[#1a56db] text-white font-semibold rounded-xl hover:bg-[#1e429f] disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center gap-2 mt-2">
+                {loading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                    Creating account...
+                  </>
+                ) : "Create Account"}
+              </button>
+
+              {/* Terms notice */}
+              <p className="text-xs text-center text-gray-400 leading-relaxed">
+                By creating an account, you agree to our{" "}
+                <span className="text-[#1a56db] cursor-pointer hover:underline">Terms of Service</span>
+                {" "}and{" "}
+                <span className="text-[#1a56db] cursor-pointer hover:underline">Privacy Policy</span>
+              </p>
+            </form>
+          </div>
+
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Already have an account?{" "}
+            <Link href="/auth/login" className="text-[#1a56db] font-semibold hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

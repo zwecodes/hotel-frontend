@@ -208,12 +208,108 @@ function ReviewSummary({ averageRating, totalReviews }) {
   );
 }
 
+// ── Review Card with inline edit ──────────────────────────
+function ReviewCard({ review, currentUserId, onUpdated }) {
+  const [editing,     setEditing]     = useState(false);
+  const [editRating,  setEditRating]  = useState(review.rating);
+  const [editComment, setEditComment] = useState(review.comment);
+  const [submitting,  setSubmitting]  = useState(false);
+
+  const isOwner = currentUserId && review.user_id === currentUserId;
+
+  const handleSave = async () => {
+    if (!editComment.trim()) { toast.error("Please write a comment"); return; }
+    setSubmitting(true);
+    try {
+      const res = await api.put(`/api/reviews/${review.id}`, {
+        rating: editRating,
+        comment: editComment.trim(),
+      });
+      if (res.data.success) {
+        toast.success("Review updated!");
+        onUpdated({ ...review, rating: editRating, comment: editComment.trim() });
+        setEditing(false);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update review");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-[#1a56db] text-sm font-bold uppercase">{review.user_name?.[0] ?? "?"}</span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">{review.user_name}</p>
+            <p className="text-xs text-gray-400">{formatDate(review.created_at)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {!editing && <StarRating rating={review.rating} size="sm" />}
+          {isOwner && !editing && (
+            <button
+              onClick={() => { setEditing(true); setEditRating(review.rating); setEditComment(review.comment); }}
+              className="flex items-center gap-1 text-xs text-[#1a56db] hover:underline font-medium ml-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Edit
+            </button>
+          )}
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1.5 block">Your Rating</label>
+            <StarRating rating={editRating} interactive onRate={setEditRating} size="lg" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Comment</label>
+            <textarea
+              value={editComment}
+              onChange={e => setEditComment(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] resize-none"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={submitting}
+              className="px-4 py-2 bg-[#1a56db] text-white text-sm font-semibold rounded-lg hover:bg-[#1e429f] disabled:opacity-60 transition-colors"
+            >
+              {submitting ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              disabled={submitting}
+              className="px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────
 export default function HotelDetailPage() {
   const { id }       = useParams();
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const { today, tomorrow } = getDefaultDates();
 
@@ -249,13 +345,10 @@ export default function HotelDetailPage() {
           const fetchedRooms = roomsRes.data.data;
           setRooms(fetchedRooms);
 
-          // ── FIX B: Restore quantities if user came back from confirm page ──
-          // Check if there's a pending booking in localStorage for THIS hotel
           try {
             const raw = localStorage.getItem("pendingBooking");
             if (raw) {
               const pending = JSON.parse(raw);
-              // Only restore if it's the same hotel
               if (String(pending.hotel?.id) === String(id)) {
                 const restored = {};
                 fetchedRooms.forEach(r => {
@@ -264,14 +357,13 @@ export default function HotelDetailPage() {
                 });
                 setQuantities(restored);
                 setGuests(String(pending.number_of_guests));
-                return; // skip the default zero init below
+                return;
               }
             }
           } catch {
-            // localStorage parse failed — fall through to default
+            // fall through to default
           }
 
-          // Default: all quantities = 0
           const init = {};
           fetchedRooms.forEach(r => { init[r.id] = 0; });
           setQuantities(init);
@@ -306,12 +398,11 @@ export default function HotelDetailPage() {
     const bookingData = {
       hotel,
       rooms: selectedRooms.map(r => ({
-        room_id:        r.id,
-        room_type:      r.room_type,
-        quantity:       quantities[r.id],
+        room_id:         r.id,
+        room_type:       r.room_type,
+        quantity:        quantities[r.id],
         price_per_night: r.price_per_night,
-        // ── FIX A: Save room images so confirm page can show them ──
-        images:         r.images || [],
+        images:          r.images || [],
       })),
       check_in_date:    checkIn,
       check_out_date:   checkOut,
@@ -334,7 +425,14 @@ export default function HotelDetailPage() {
       });
       if (res.data.success) {
         toast.success("Review submitted!");
-        setReviews(prev => [{ id: res.data.review_id, rating: reviewRating, comment: reviewComment.trim(), user_name: "You", created_at: new Date().toISOString() }, ...prev]);
+        setReviews(prev => [{
+          id: res.data.review_id,
+          user_id: user?.id,
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+          user_name: user?.name || "You",
+          created_at: new Date().toISOString(),
+        }, ...prev]);
         setRatingData(prev => {
           if (!prev) return { average_rating: reviewRating, total_reviews: 1 };
           const newTotal = Number(prev.total_reviews) + 1;
@@ -381,7 +479,6 @@ export default function HotelDetailPage() {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-32">
-      {/* Gallery */}
       <HotelGallery images={hotel.images} hotelName={hotel.name} hotelId={id} />
 
       {/* Meta bar */}
@@ -576,21 +673,22 @@ export default function HotelDetailPage() {
               ) : (
                 <div className="space-y-3">
                   {reviews.map(review => (
-                    <div key={review.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-[#1a56db] text-sm font-bold uppercase">{review.user_name?.[0] ?? "?"}</span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">{review.user_name}</p>
-                            <p className="text-xs text-gray-400">{formatDate(review.created_at)}</p>
-                          </div>
-                        </div>
-                        <StarRating rating={review.rating} size="sm" />
-                      </div>
-                      <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
-                    </div>
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      currentUserId={user?.id}
+                      onUpdated={(updatedReview) => {
+                        setReviews(prev => prev.map(r =>
+                          r.id === updatedReview.id ? { ...r, ...updatedReview } : r
+                        ));
+                        setRatingData(prev => {
+                          if (!prev) return prev;
+                          const others = reviews.filter(r => r.id !== updatedReview.id);
+                          const newAvg = (others.reduce((s, r) => s + r.rating, 0) + updatedReview.rating) / reviews.length;
+                          return { ...prev, average_rating: newAvg };
+                        });
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -672,29 +770,28 @@ export default function HotelDetailPage() {
                   </div>
                 )}
                 {capacityExceeded && (
-  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
-    <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <p className="text-xs text-red-700">
-      <strong>Not enough capacity.</strong> Your selected rooms fit{" "}
-      <strong>{totalCapacity} guest{totalCapacity !== 1 ? "s" : ""}</strong> but you have{" "}
-      <strong>{guests} guest{Number(guests) !== 1 ? "s" : ""}</strong>. Please add more rooms or reduce guests.
-    </p>
-  </div>
-)}
-<button
-  onClick={handleBookNow}
-  disabled={capacityExceeded}
-  className={`mt-4 w-full py-3 font-semibold rounded-xl transition-colors shadow-sm text-sm ${
-    capacityExceeded
-      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-      : "bg-[#1a56db] text-white hover:bg-[#1e429f]"
-  }`}
->
-  {isAuthenticated ? "Book Now" : "Login to Book"}
-</button>
-                  
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p className="text-xs text-red-700">
+                      <strong>Not enough capacity.</strong> Selected rooms fit{" "}
+                      <strong>{totalCapacity} guest{totalCapacity !== 1 ? "s" : ""}</strong> but you have{" "}
+                      <strong>{guests} guest{Number(guests) !== 1 ? "s" : ""}</strong>. Add more rooms or reduce guests.
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={handleBookNow}
+                  disabled={capacityExceeded}
+                  className={`mt-4 w-full py-3 font-semibold rounded-xl transition-colors shadow-sm text-sm ${
+                    capacityExceeded
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-[#1a56db] text-white hover:bg-[#1e429f]"
+                  }`}
+                >
+                  {isAuthenticated ? "Book Now" : "Login to Book"}
+                </button>
                 <p className="text-xs text-center text-gray-400 mt-2">Free cancellation within 24 hours</p>
               </div>
 
