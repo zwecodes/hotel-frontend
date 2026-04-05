@@ -24,11 +24,13 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         <NextTopLoader
-          color="#1a56db"
-          height={3}
-          showSpinner={false}
-          shadow="0 0 10px #1a56db,0 0 5px #1a56db"
-        />
+    color="#1a56db"
+    height={4}
+    showSpinner={false}
+    speed={200}
+    crawlSpeed={200}
+    shadow="0 0 15px #1a56db, 0 0 8px #1a56db"
+  />
         <AuthProvider>
           <Navbar />
           <main className="flex-1">
