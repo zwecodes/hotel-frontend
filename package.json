@@ -11,6 +11,7 @@
   "dependencies": {
     "axios": "^1.7.9",
     "next": "^15.2.6",
+    "nextjs-toploader": "^3.9.17",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.4.1"

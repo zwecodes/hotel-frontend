@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 
 const geist = Geist({
@@ -22,6 +23,12 @@ export default function RootLayout({ children }) {
         className="min-h-screen bg-gray-50 text-gray-900 antialiased flex flex-col"
         suppressHydrationWarning
       >
+        <NextTopLoader
+          color="#1a56db"
+          height={3}
+          showSpinner={false}
+          shadow="0 0 10px #1a56db,0 0 5px #1a56db"
+        />
         <AuthProvider>
           <Navbar />
           <main className="flex-1">
