@@ -75,7 +75,6 @@ function Lightbox({ images, startIndex, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col" onClick={onClose}>
-      {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" onClick={e => e.stopPropagation()}>
         <span className="text-white/70 text-sm">{activeIndex + 1} / {images.length}</span>
         <button onClick={onClose}
@@ -85,8 +84,6 @@ function Lightbox({ images, startIndex, onClose }) {
           </svg>
         </button>
       </div>
-
-      {/* Main image */}
       <div className="flex-1 flex items-center justify-center px-16 relative" onClick={e => e.stopPropagation()}>
         <button onClick={prev}
           className="absolute left-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors">
@@ -103,8 +100,6 @@ function Lightbox({ images, startIndex, onClose }) {
           </svg>
         </button>
       </div>
-
-      {/* Thumbnail strip */}
       <div className="flex-shrink-0 flex gap-2 justify-center px-4 py-4 overflow-x-auto"
         onClick={e => e.stopPropagation()}>
         {images.map((img, i) => (
@@ -127,19 +122,18 @@ function HotelGallery({ images, hotelName, hotelId }) {
     ? images
     : [{ id: "fallback", image_url: getHotelImage(Number(hotelId)) }];
 
-  const primary  = displayImages[0];
-  const secondary = displayImages.slice(1, 5); // up to 4 secondary images
+  const primary   = displayImages[0];
+  const secondary = displayImages.slice(1, 5);
 
   const mobilePrev = () => setMobileIndex(i => (i - 1 + displayImages.length) % displayImages.length);
   const mobileNext = () => setMobileIndex(i => (i + 1) % displayImages.length);
 
   return (
     <>
-      {/* ── Desktop grid (hidden on mobile) ── */}
+      {/* Desktop grid */}
       <div className="hidden sm:block bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-0">
           {displayImages.length === 1 ? (
-            // Single image — full width
             <div className="relative h-[420px] rounded-2xl overflow-hidden cursor-pointer group"
               onClick={() => setLightboxIndex(0)}>
               <img src={primary.image_url} alt={hotelName}
@@ -147,33 +141,25 @@ function HotelGallery({ images, hotelName, hotelId }) {
               <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" />
             </div>
           ) : (
-            // Grid layout
             <div className={`grid gap-2 h-[420px] rounded-2xl overflow-hidden ${
               secondary.length === 0 ? "grid-cols-1" :
               secondary.length === 1 ? "grid-cols-2" :
               secondary.length <= 3  ? "grid-cols-3" :
               "grid-cols-[3fr_1fr_1fr]"
             }`}>
-              {/* Primary — large left */}
               <div className="relative cursor-pointer group row-span-2 overflow-hidden"
                 onClick={() => setLightboxIndex(0)}>
                 <img src={primary.image_url} alt={hotelName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-black/5 group-hover:bg-black/20 transition-colors" />
               </div>
-
-              {/* Secondary images — right grid */}
               {secondary.map((img, i) => (
                 <div key={img.id ?? i}
-                  className={`relative cursor-pointer group overflow-hidden ${
-                    // Last visible cell gets the "view all" overlay
-                    i === secondary.length - 1 && displayImages.length > 5 ? "relative" : ""
-                  }`}
+                  className="relative cursor-pointer group overflow-hidden"
                   onClick={() => setLightboxIndex(i + 1)}>
                   <img src={img.image_url} alt=""
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-black/5 group-hover:bg-black/20 transition-colors" />
-                  {/* "View all" overlay on last cell */}
                   {i === secondary.length - 1 && displayImages.length > 5 && (
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5 group-hover:bg-black/60 transition-colors">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,8 +172,6 @@ function HotelGallery({ images, hotelName, hotelId }) {
               ))}
             </div>
           )}
-
-          {/* View all photos button */}
           <div className="flex items-center justify-between py-3">
             <h1 className="text-xl font-bold text-white">{hotelName}</h1>
             {displayImages.length > 1 && (
@@ -203,12 +187,11 @@ function HotelGallery({ images, hotelName, hotelId }) {
         </div>
       </div>
 
-      {/* ── Mobile slider (shown on small screens only) ── */}
+      {/* Mobile slider */}
       <div className="sm:hidden relative h-64 bg-gray-900 overflow-hidden">
         <img src={displayImages[mobileIndex].image_url} alt={hotelName}
           className="w-full h-full object-cover" onClick={() => setLightboxIndex(mobileIndex)} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
-
         {displayImages.length > 1 && (
           <>
             <button onClick={mobilePrev}
@@ -228,19 +211,13 @@ function HotelGallery({ images, hotelName, hotelId }) {
             </div>
           </>
         )}
-
         <div className="absolute bottom-4 left-4">
           <h1 className="text-xl font-bold text-white drop-shadow-lg">{hotelName}</h1>
         </div>
       </div>
 
-      {/* Lightbox */}
       {lightboxIndex !== null && (
-        <Lightbox
-          images={displayImages}
-          startIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
+        <Lightbox images={displayImages} startIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
     </>
   );
@@ -371,9 +348,14 @@ export default function HotelDetailPage() {
   const [hotel,      setHotel]      = useState(null);
   const [rooms,      setRooms]      = useState([]);
   const [reviews,    setReviews]    = useState([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [reviewsPage,  setReviewsPage]  = useState(1);
+  const [loadingMore,  setLoadingMore]  = useState(false);
   const [ratingData, setRatingData] = useState(null);
   const [quantities, setQuantities] = useState({});
   const [loading,    setLoading]    = useState(true);
+
+  const REVIEWS_LIMIT = 5;
 
   const [reviewRating,     setReviewRating]     = useState(5);
   const [reviewComment,    setReviewComment]    = useState("");
@@ -387,7 +369,7 @@ export default function HotelDetailPage() {
       checkIn && checkOut
         ? api.get(`/api/hotels/${id}/rooms/availability?check_in=${checkIn}&check_out=${checkOut}`)
         : api.get(`/api/hotels/${id}/rooms`),
-      api.get(`/api/reviews/hotel/${id}`),
+      api.get(`/api/reviews/hotel/${id}?page=1&limit=${REVIEWS_LIMIT}`),
       api.get(`/api/reviews/hotel/${id}/rating`),
     ])
       .then(([hotelRes, roomsRes, reviewsRes, ratingRes]) => {
@@ -415,12 +397,32 @@ export default function HotelDetailPage() {
           fetchedRooms.forEach(r => { init[r.id] = 0; });
           setQuantities(init);
         }
-        if (reviewsRes.data.success) setReviews(reviewsRes.data.data);
-        if (ratingRes.data.success)  setRatingData(ratingRes.data.data);
+        if (reviewsRes.data.success) {
+          setReviews(reviewsRes.data.data);
+          setReviewsTotal(reviewsRes.data.total);
+          setReviewsPage(1);
+        }
+        if (ratingRes.data.success) setRatingData(ratingRes.data.data);
       })
       .catch(() => toast.error("Failed to load hotel details"))
       .finally(() => setLoading(false));
   }, [id, checkIn, checkOut]);
+
+  const handleLoadMoreReviews = async () => {
+    setLoadingMore(true);
+    try {
+      const nextPage = reviewsPage + 1;
+      const res = await api.get(`/api/reviews/hotel/${id}?page=${nextPage}&limit=${REVIEWS_LIMIT}`);
+      if (res.data.success) {
+        setReviews(prev => [...prev, ...res.data.data]);
+        setReviewsPage(nextPage);
+      }
+    } catch {
+      toast.error("Failed to load more reviews");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const nights = Math.max(1,
     checkIn && checkOut
@@ -464,7 +466,13 @@ export default function HotelDetailPage() {
       });
       if (res.data.success) {
         toast.success("Review submitted!");
-        setReviews(prev => [{ id: res.data.review_id, user_id: user?.id, rating: reviewRating, comment: reviewComment.trim(), user_name: user?.name || "You", created_at: new Date().toISOString() }, ...prev]);
+        const newReview = {
+          id: res.data.review_id, user_id: user?.id,
+          rating: reviewRating, comment: reviewComment.trim(),
+          user_name: user?.name || "You", created_at: new Date().toISOString(),
+        };
+        setReviews(prev => [newReview, ...prev]);
+        setReviewsTotal(prev => prev + 1);
         setRatingData(prev => {
           if (!prev) return { average_rating: reviewRating, total_reviews: 1 };
           const newTotal = Number(prev.total_reviews) + 1;
@@ -511,6 +519,7 @@ export default function HotelDetailPage() {
   }
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name} ${hotel.address} ${hotel.city}`)}`;
+  const hasMoreReviews = reviews.length < reviewsTotal;
 
   return (
     <div className="bg-gray-50 min-h-screen pb-32">
@@ -666,13 +675,15 @@ export default function HotelDetailPage() {
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Guest Reviews
-                {reviews.length > 0 && <span className="ml-2 text-sm font-normal text-gray-400">({reviews.length})</span>}
+                {reviewsTotal > 0 && <span className="ml-2 text-sm font-normal text-gray-400">({reviewsTotal})</span>}
               </h2>
+
               {ratingData && Number(ratingData.total_reviews) > 0 && (
                 <div className="mb-5">
                   <ReviewSummary averageRating={ratingData.average_rating} totalReviews={ratingData.total_reviews} />
                 </div>
               )}
+
               {isAuthenticated && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-5 shadow-sm">
                   <h3 className="font-semibold text-gray-800 mb-4">Write a Review</h3>
@@ -694,26 +705,52 @@ export default function HotelDetailPage() {
                   </form>
                 </div>
               )}
+
               {reviews.length === 0 ? (
                 <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center text-gray-400 shadow-sm">
                   <p className="text-sm">No reviews yet. Be the first to review!</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {reviews.map(review => (
-                    <ReviewCard key={review.id} review={review} currentUserId={user?.id}
-                      onUpdated={(updatedReview) => {
-                        setReviews(prev => prev.map(r => r.id === updatedReview.id ? { ...r, ...updatedReview } : r));
-                        setRatingData(prev => {
-                          if (!prev) return prev;
-                          const others = reviews.filter(r => r.id !== updatedReview.id);
-                          const newAvg = (others.reduce((s, r) => s + r.rating, 0) + updatedReview.rating) / reviews.length;
-                          return { ...prev, average_rating: newAvg };
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="space-y-3">
+                    {reviews.map(review => (
+                      <ReviewCard key={review.id} review={review} currentUserId={user?.id}
+                        onUpdated={(updatedReview) => {
+                          setReviews(prev => prev.map(r => r.id === updatedReview.id ? { ...r, ...updatedReview } : r));
+                          setRatingData(prev => {
+                            if (!prev) return prev;
+                            const others = reviews.filter(r => r.id !== updatedReview.id);
+                            const newAvg = (others.reduce((s, r) => s + r.rating, 0) + updatedReview.rating) / reviews.length;
+                            return { ...prev, average_rating: newAvg };
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Load more */}
+                  {hasMoreReviews && (
+                    <div className="mt-4 text-center">
+                      <button onClick={handleLoadMoreReviews} disabled={loadingMore}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 disabled:opacity-60 transition-colors">
+                        {loadingMore ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Show more reviews
+                            <span className="text-gray-400">({reviewsTotal - reviews.length} remaining)</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
