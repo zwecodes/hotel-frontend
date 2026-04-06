@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 
@@ -24,17 +25,19 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         <NextTopLoader
-    color="#1a56db"
-    height={4}
-    showSpinner={false}
-    speed={200}
-    crawlSpeed={200}
-    shadow="0 0 15px #1a56db, 0 0 8px #1a56db"
-  />
+          color="#1a56db"
+          height={4}
+          showSpinner={false}
+          speed={200}
+          crawlSpeed={200}
+          shadow="0 0 15px #1a56db, 0 0 8px #1a56db"
+        />
         <AuthProvider>
           <Navbar />
           <main className="flex-1">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </main>
           <Footer />
           <Toaster
