@@ -76,13 +76,22 @@ export default function LoginPage() {
         router.push("/");
       }
     } catch (err) {
-      const msg = err.response?.data?.message || "Login failed. Please try again.";
-      if (msg.toLowerCase().includes("password")) setErrors({ password: msg });
-      else if (msg.toLowerCase().includes("email") || msg.toLowerCase().includes("user")) setErrors({ email: msg });
-      else toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
+
+const msg = err.response?.data?.message || "Login failed. Please try again.";
+const friendlyMsg =
+  msg === "Invalid credentials" ? "Incorrect email or password. Please try again." :
+  msg === "Server error" ? "Something went wrong. Please try again later." :
+  msg;
+if (friendlyMsg.toLowerCase().includes("password")) {
+  setErrors({ password: friendlyMsg });
+} else if (friendlyMsg.toLowerCase().includes("email") || friendlyMsg.toLowerCase().includes("user")) {
+  setErrors({ email: friendlyMsg });
+} else {
+  setErrors({ password: friendlyMsg });
+}
+} finally {
+  setLoading(false);
+}
   };
 
   return (
@@ -162,7 +171,7 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
 
               {/* Email */}
               <div>
@@ -175,7 +184,7 @@ export default function LoginPage() {
                   </span>
                   <input type="email" value={form.email}
                     onChange={e => set("email", e.target.value)}
-                    placeholder="you@example.com" autoComplete="email"
+                    placeholder="you@example.com" autoComplete="off"
                     className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] focus:border-transparent transition-shadow ${errors.email ? "border-red-400 bg-red-50" : "border-gray-200"}`}/>
                 </div>
                 {errors.email && <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1"><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>{errors.email}</p>}
@@ -192,7 +201,7 @@ export default function LoginPage() {
                   </span>
                   <input type={showPass ? "text" : "password"} value={form.password}
                     onChange={e => set("password", e.target.value)}
-                    placeholder="••••••••" autoComplete="current-password"
+                    placeholder="••••••••" autoComplete="off"
                     className={`w-full pl-10 pr-11 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] focus:border-transparent transition-shadow ${errors.password ? "border-red-400 bg-red-50" : "border-gray-200"}`}/>
                   <button type="button" onClick={() => setShowPass(p => !p)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
