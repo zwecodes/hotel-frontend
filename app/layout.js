@@ -12,9 +12,19 @@ const geist = Geist({
   variable: "--font-geist",
 });
 
+
 export const metadata = {
-  title: "HotelBook — Find & Book Hotels",
-  description: "Find the best hotels at the best prices.",
+  title: {
+    default: "HotelBook — Find & Book Hotels",
+    template: "%s | HotelBook",
+  },
+  description: "Find and book the best hotels at the best prices. Free cancellation, best price guarantee.",
+  keywords: "hotel booking, hotels, travel, accommodation",
+  openGraph: {
+    siteName: "HotelBook",
+    type: "website",
+    locale: "en_US",
+  },
 };
 
 export default function RootLayout({ children }) {

@@ -149,6 +149,13 @@ export default function HotelsPage() {
   const [error,       setError]       = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+
+  useEffect(() => {
+  document.title = keyword
+    ? `Hotels matching "${keyword}" | HotelBook`
+    : "Search Hotels | HotelBook";
+}, [keyword]);
+
   const limit      = 10;
   const totalPages = Math.ceil(total / limit);
   const hasDates   = checkIn && checkOut;

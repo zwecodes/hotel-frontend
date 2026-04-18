@@ -14,6 +14,8 @@ export default function MyBookingsPage() {
   const [cancellingId, setCancellingId] = useState(null);
   const [payingId, setPayingId] = useState(null);
 
+  useEffect(() => { document.title = "My Bookings | HotelBook"; }, []);
+
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {

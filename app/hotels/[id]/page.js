@@ -373,7 +373,19 @@ export default function HotelDetailPage() {
       api.get(`/api/reviews/hotel/${id}/rating`),
     ])
       .then(([hotelRes, roomsRes, reviewsRes, ratingRes]) => {
-        if (hotelRes.data.success) setHotel(hotelRes.data.data);
+        if (hotelRes.data.success) {
+  const hotelData = hotelRes.data.data;
+  setHotel(hotelData);
+  document.title = `${hotelData.name} | HotelBook`;
+  // Save to recently viewed
+  try {
+    const raw = localStorage.getItem("recentlyViewedHotels");
+    const list = raw ? JSON.parse(raw) : [];
+    const filtered = list.filter((h) => h.id !== hotelData.id);
+    const updated = [hotelData, ...filtered].slice(0, 5);
+    localStorage.setItem("recentlyViewedHotels", JSON.stringify(updated));
+  } catch { /* silent */ }
+}
         if (roomsRes.data.success) {
           const fetchedRooms = roomsRes.data.data;
           setRooms(fetchedRooms);

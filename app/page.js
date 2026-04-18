@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import HotelCard from "@/components/HotelCard";
 import api from "@/lib/api";
+import { getHotelPrimaryImage } from "@/lib/images";
+
+const RECENTLY_VIEWED_KEY = "recentlyViewedHotels";
+const MAX_RECENT = 5;
 
 function getDefaultDates() {
   const today = new Date();
@@ -13,6 +18,85 @@ function getDefaultDates() {
   return { today: fmt(today), tomorrow: fmt(tomorrow) };
 }
 
+// ── Recently Viewed helpers (used by hotel detail page too) ──
+export function addRecentlyViewed(hotel) {
+  try {
+    const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    const filtered = list.filter((h) => h.id !== hotel.id);
+    const updated = [hotel, ...filtered].slice(0, MAX_RECENT);
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(updated));
+  } catch { /* silent */ }
+}
+
+export function getRecentlyViewed() {
+  try {
+    const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+// ── Recently Viewed Strip ─────────────────────────────────
+function RecentlyViewedSection({ today, tomorrow }) {
+  const [recent, setRecent] = useState([]);
+
+  useEffect(() => {
+    setRecent(getRecentlyViewed());
+  }, []);
+
+  if (recent.length === 0) return null;
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Recently Viewed</h2>
+          <p className="text-gray-500 text-sm mt-0.5">Pick up where you left off</p>
+        </div>
+        <button
+          onClick={() => {
+            localStorage.removeItem(RECENTLY_VIEWED_KEY);
+            setRecent([]);
+          }}
+          className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+        >
+          Clear history
+        </button>
+      </div>
+
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+        {recent.map((hotel) => (
+          <Link
+            key={hotel.id}
+            href={`/hotels/${hotel.id}?check_in=${today}&check_out=${tomorrow}`}
+            className="flex-shrink-0 w-52 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
+          >
+            <div className="h-32 overflow-hidden bg-gray-100">
+              <img
+                src={getHotelPrimaryImage(hotel)}
+                alt={hotel.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="p-3">
+              <p className="text-sm font-semibold text-gray-800 truncate">{hotel.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{hotel.city}</p>
+              <div className="flex items-center gap-1 mt-1.5">
+                {Array.from({ length: hotel.star_rating || 0 }).map((_, i) => (
+                  <svg key={i} className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                  </svg>
+                ))}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter();
   const { today, tomorrow } = getDefaultDates();
@@ -27,7 +111,10 @@ export default function HomePage() {
   const [hotels, setHotels] = useState([]);
   const [loadingHotels, setLoadingHotels] = useState(true);
 
-  // Featured hotels — fetch from /api/hotels (no dates needed)
+  useEffect(() => {
+    document.title = "HotelBook — Find & Book Hotels";
+  }, []);
+
   useEffect(() => {
     api.get("/api/hotels")
       .then((res) => { if (res.data.success) setHotels(res.data.data.slice(0, 6)); })
@@ -81,8 +168,6 @@ export default function HomePage() {
           {/* Search card */}
           <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-2xl p-4 sm:p-6 max-w-4xl mx-auto">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-
-              {/* Keyword */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Destination</label>
                 <div className="relative">
@@ -97,7 +182,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Check-in */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Check-in</label>
                 <div className="relative">
@@ -112,7 +196,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Check-out */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Check-out</label>
                 <div className="relative">
@@ -127,7 +210,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Guests */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Guests</label>
                 <div className="relative">
@@ -172,6 +254,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── RECENTLY VIEWED ───────────────────────────────── */}
+      <RecentlyViewedSection today={today} tomorrow={tomorrow} />
+
       {/* ── FEATURED HOTELS ──────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex items-center justify-between mb-6">
@@ -210,7 +295,7 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {hotels.map((hotel) => (
-              <HotelCard key={hotel.id} hotel={hotel}/>
+              <HotelCard key={hotel.id} hotel={hotel} />
             ))}
           </div>
         )}
