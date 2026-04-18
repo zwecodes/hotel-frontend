@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function Navbar() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
@@ -76,9 +77,11 @@ export default function Navbar() {
                   </NavLink>
                 )}
 
+                {/* Notification Bell */}
+                <NotificationBell />
+
                 {/* User badge */}
                 <div className="flex items-center gap-2 ml-1 pl-3 border-l border-blue-400">
-                  {/* Avatar — clickable to profile */}
                   <Link href="/profile"
                     className="w-7 h-7 rounded-full overflow-hidden bg-blue-200 flex items-center justify-center flex-shrink-0 hover:ring-2 hover:ring-white transition-all">
                     {user?.avatar_url ? (
@@ -155,9 +158,14 @@ export default function Navbar() {
                   Profile
                 </MobileNavLink>
 
+                {/* Mobile notification bell row */}
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <span className="text-xs text-blue-200 font-medium">Notifications</span>
+                  <NotificationBell />
+                </div>
+
                 <div className="flex items-center justify-between px-3 pt-2 border-t border-blue-500 mt-2">
                   <Link href="/profile" className="flex items-center gap-2">
-                    {/* Mobile avatar */}
                     <div className="w-7 h-7 rounded-full overflow-hidden bg-blue-200 flex items-center justify-center flex-shrink-0">
                       {user?.avatar_url ? (
                         <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover"/>
