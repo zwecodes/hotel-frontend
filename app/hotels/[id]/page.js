@@ -354,6 +354,7 @@ export default function HotelDetailPage() {
   const [ratingData, setRatingData] = useState(null);
   const [quantities, setQuantities] = useState({});
   const [loading,    setLoading]    = useState(true);
+  const [similarHotels, setSimilarHotels] = useState([]);
 
   const REVIEWS_LIMIT = 5;
 
@@ -377,7 +378,6 @@ export default function HotelDetailPage() {
   const hotelData = hotelRes.data.data;
   setHotel(hotelData);
   document.title = `${hotelData.name} | HotelBook`;
-  // Save to recently viewed
   try {
     const raw = localStorage.getItem("recentlyViewedHotels");
     const list = raw ? JSON.parse(raw) : [];
@@ -385,6 +385,16 @@ export default function HotelDetailPage() {
     const updated = [hotelData, ...filtered].slice(0, 5);
     localStorage.setItem("recentlyViewedHotels", JSON.stringify(updated));
   } catch { /* silent */ }
+  // Fetch similar hotels in same city
+  api.get(`/api/hotels?city=${encodeURIComponent(hotelData.city)}`)
+    .then(simRes => {
+      if (simRes.data.success) {
+        setSimilarHotels(
+          simRes.data.data.filter(h => h.id !== hotelData.id).slice(0, 3)
+        );
+      }
+    })
+    .catch(() => {});
 }
         if (roomsRes.data.success) {
           const fetchedRooms = roomsRes.data.data;
@@ -765,6 +775,44 @@ export default function HotelDetailPage() {
                 </>
               )}
             </div>
+
+            {/* Similar Hotels */}
+            {similarHotels.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Similar Hotels in {hotel.city}</h2>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  {similarHotels.map(h => (
+                    <a
+                      key={h.id}
+                      href={`/hotels/${h.id}?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}`}
+                      className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group"
+                    >
+                      <div className="h-36 overflow-hidden bg-gray-100">
+                        <img
+                          src={h.primary_image_url || `https://picsum.photos/seed/hotel${h.id}/400/200`}
+                          alt={h.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{h.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{h.city}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-0.5">
+                            {Array.from({ length: h.star_rating || 0 }).map((_, i) => (
+                              <svg key={i} className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-xs text-[#1a56db] font-semibold">View →</span>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Right column — sticky booking panel ── */}
