@@ -70,7 +70,7 @@ function InputField({ label, type = "text", value, onChange, placeholder, disabl
 // ── Main Page ─────────────────────────────────────────────
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated, login, token } = useAuth();
+  const { user, isAuthenticated, updateUser } = useAuth();
   const fileInputRef = useRef(null);
 
   const [profile,   setProfile]   = useState(null);
@@ -128,7 +128,7 @@ export default function ProfilePage() {
         toast.success("Profile updated!");
         setProfile(prev => ({ ...prev, ...res.data.data }));
         // Update AuthContext so navbar reflects changes
-        login(res.data.data, token);
+        updateUser(res.data.data);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update profile");
@@ -143,8 +143,8 @@ export default function ProfilePage() {
       toast.error("All password fields are required");
       return;
     }
-    if (newPw.length < 6) {
-      toast.error("New password must be at least 6 characters");
+    if (newPw.length < 10) {
+      toast.error("New password must be at least 10 characters");
       return;
     }
     if (newPw !== confirmPw) {
@@ -191,7 +191,7 @@ export default function ProfilePage() {
         toast.success("Avatar updated!");
         setProfile(prev => ({ ...prev, avatar_url: url }));
         // Update AuthContext so navbar shows new avatar
-        login({ ...user, avatar_url: url }, token);
+        updateUser({ ...user, avatar_url: url });
       }
     } catch {
       toast.error("Failed to upload avatar");
@@ -421,8 +421,8 @@ export default function ProfilePage() {
                 type={showPw ? "text" : "password"}
                 value={newPw}
                 onChange={e => setNewPw(e.target.value)}
-                placeholder="At least 6 characters"
-                hint={newPw.length > 0 && newPw.length < 6 ? "Too short — minimum 6 characters" : ""}
+                placeholder="At least 10 characters"
+                hint={newPw.length > 0 && newPw.length < 10 ? "Too short — minimum 10 characters" : ""}
               />
               <InputField
                 label="Confirm New Password"
@@ -460,7 +460,7 @@ export default function ProfilePage() {
                     ))}
                   </div>
                   <p className="text-xs text-gray-400">
-                    {newPw.length < 6 ? "Weak" : newPw.length < 9 ? "Fair" : newPw.length < 12 ? "Good" : "Strong"} password
+                    {newPw.length < 10 ? "Weak" : newPw.length < 14 ? "Fair" : newPw.length < 18 ? "Good" : "Strong"} password
                   </p>
                 </div>
               )}

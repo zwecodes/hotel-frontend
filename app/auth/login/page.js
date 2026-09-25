@@ -68,10 +68,13 @@ export default function LoginPage() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
     try {
-      const res = await api.post("/api/auth/login", form);
+      const res = await api.post("/api/auth/login", {
+        email: form.email,
+        password: form.password,
+        remember,
+      });
       if (res.data.success) {
-        login(res.data.user, res.data.token);
-        document.cookie = `token=${res.data.token}; path=/; max-age=${remember ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7}`;
+        login(res.data.user, { remember });
         toast.success(`Welcome back, ${res.data.user.name}!`);
         router.push("/");
       }
@@ -220,14 +223,19 @@ if (friendlyMsg.toLowerCase().includes("password")) {
                 {errors.password && <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1"><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>{errors.password}</p>}
               </div>
 
-              {/* Remember me */}
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="remember" checked={remember}
-                  onChange={e => setRemember(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#1a56db] focus:ring-[#1a56db]"/>
-                <label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
-                  Remember me for 30 days
-                </label>
+              {/* Remember me + forgot */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="remember" checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-[#1a56db] focus:ring-[#1a56db]"/>
+                  <label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
+                    Remember me for 30 days
+                  </label>
+                </div>
+                <Link href="/auth/forgot-password" className="text-sm text-[#1a56db] font-medium hover:underline">
+                  Forgot password?
+                </Link>
               </div>
 
               {/* Submit */}

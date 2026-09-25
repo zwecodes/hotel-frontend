@@ -38,7 +38,7 @@ const FEATURES = [
 
 function PasswordStrength({ password }) {
   if (!password) return null;
-  const strength = password.length < 6 ? 1 : password.length < 9 ? 2 : 3;
+  const strength = password.length < 10 ? 1 : password.length < 14 ? 2 : 3;
   const labels = ["", "Weak", "Fair", "Strong"];
   const colors = ["", "bg-red-400", "bg-yellow-400", "bg-green-400"];
   return (
@@ -71,7 +71,7 @@ export default function RegisterPage() {
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Invalid email address";
     if (!form.password) e.password = "Password is required";
-    else if (form.password.length < 6) e.password = "Password must be at least 6 characters";
+    else if (form.password.length < 10) e.password = "Password must be at least 10 characters";
     if (!form.confirmPassword) e.confirmPassword = "Please confirm your password";
     else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
     return e;
@@ -231,7 +231,7 @@ export default function RegisterPage() {
                   </span>
                   <input type={showPass ? "text" : "password"} value={form.password}
                     onChange={e => set("password", e.target.value)}
-                    placeholder="Min. 6 characters" autoComplete="new-password"
+                    placeholder="Min. 10 characters" autoComplete="new-password"
                     className={inputCls("password")}/>
                   <button type="button" onClick={() => setShowPass(p => !p)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">

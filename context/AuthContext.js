@@ -2,68 +2,92 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
 const AuthContext = createContext(null);
 
+const SESSION_COOKIE = "hb_session";
+
+function setSessionFlag(days = 7) {
+  if (typeof document === "undefined") return;
+  const maxAge = days * 24 * 60 * 60;
+  document.cookie = `${SESSION_COOKIE}=1; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+function clearSessionFlag() {
+  if (typeof document === "undefined") return;
+  document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Rehydrate from localStorage on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
-    if (storedToken && storedUser) {
+    let cancelled = false;
+
+    async function bootstrap() {
       try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const res = await api.get("/api/auth/me");
+        if (!cancelled && res.data?.success && res.data.user) {
+          setUser(res.data.user);
+          setSessionFlag();
+        } else if (!cancelled) {
+          setUser(null);
+          clearSessionFlag();
+        }
       } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        if (!cancelled) {
+          setUser(null);
+          clearSessionFlag();
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
-    setLoading(false);
+
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /**
-   * Call this after a successful API login/register response.
-   * @param {object} userData  - user object from the API
-   * @param {string} tokenData - JWT string from the API
+   * After successful login. JWTs live in HttpOnly cookies set by the API.
    */
-  const login = (userData, tokenData) => {
+  const login = (userData, opts = {}) => {
     setUser(userData);
-    setToken(tokenData);
-    localStorage.setItem("token", tokenData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    setSessionFlag(opts.remember ? 30 : 7);
   };
 
-  const logout = () => {
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
+  const logout = async () => {
+    try {
+      await api.post("/api/auth/logout");
+    } catch {
+      // clear local state anyway
+    }
     setUser(null);
-    setToken(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearSessionFlag();
     router.push("/auth/login");
   };
 
-  const isAuthenticated = !!token;
-
-  // Role helpers — adjust role strings to match your backend response
+  const isAuthenticated = !!user;
   const isAdmin =
-    isAuthenticated &&
-    (user?.role === "admin" || user?.role === "super_admin");
-
-  const isSuperAdmin =
-    isAuthenticated && user?.role === "super_admin";
+    isAuthenticated && (user?.role === "admin" || user?.role === "super_admin");
+  const isSuperAdmin = isAuthenticated && user?.role === "super_admin";
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
         loading,
         login,
+        updateUser,
         logout,
         isAuthenticated,
         isAdmin,
