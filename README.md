@@ -15,6 +15,12 @@ API: [hotel-backend](https://github.com/zwecodes/hotel-backend) · Live: [hotelb
 
 ---
 
+## CI
+
+GitHub Actions runs `npm run lint` and `npm run build` on every push to `main`.
+
+---
+
 ## Payments (Phase 2)
 
 - “Pay online” creates a booking, then `POST /api/payments/checkout` and redirects to Stripe
