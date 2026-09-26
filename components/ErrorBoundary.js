@@ -1,6 +1,7 @@
 "use client";
 
 import { Component } from "react";
+import Link from "next/link";
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -52,12 +53,12 @@ export default class ErrorBoundary extends Component {
               >
                 Try Again
               </button>
-              <a
+              <Link
                 href="/"
-                className="flex-1 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors text-center"
               >
                 Go Home
-              </a>
+              </Link>
             </div>
           </div>
         </div>

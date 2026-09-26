@@ -264,12 +264,12 @@ export default function HomePage() {
             <h2 className="text-2xl font-bold text-gray-900">Featured Hotels</h2>
             <p className="text-gray-500 text-sm mt-1">Hand-picked stays for every traveller</p>
           </div>
-          <a href="/hotels" className="text-sm font-medium text-[#1a56db] hover:underline flex items-center gap-1">
+          <Link href="/hotels" className="text-sm font-medium text-[#1a56db] hover:underline flex items-center gap-1">
             View all
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
             </svg>
-          </a>
+          </Link>
         </div>
 
         {loadingHotels ? (

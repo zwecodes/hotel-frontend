@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import BookingCard from "@/components/BookingCard";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
@@ -178,12 +179,12 @@ export default function MyBookingsPage() {
                 : `You don't have any ${activeTab} bookings.`}
             </p>
             {activeTab === "all" && (
-              <a
+              <Link
                 href="/hotels"
                 className="inline-block px-6 py-2.5 bg-[#1a56db] text-white text-sm font-semibold rounded-lg hover:bg-[#1e429f] transition-colors"
               >
                 Browse Hotels
-              </a>
+              </Link>
             )}
           </div>
         ) : (
