@@ -11,17 +11,27 @@ API: [hotel-backend](https://github.com/zwecodes/hotel-backend) · Live: [hotelb
 - Next.js 15 (App Router), React 19, Tailwind CSS
 - Axios with `withCredentials` (HttpOnly cookie sessions)
 - Cloudinary for image uploads
+- **Stripe Checkout** redirect (no card data on this app)
+
+---
+
+## Payments (Phase 2)
+
+- “Pay online” creates a booking, then `POST /api/payments/checkout` and redirects to Stripe
+- Booking becomes `paid` only after Stripe’s signed webhook hits the API
+- “Pay at hotel” still confirms without a card charge
+- My Bookings “Pay Now” uses the same Checkout flow
+
+Sandbox card: `4242 4242 4242 4242`
 
 ---
 
 ## Auth (Phase 1)
 
-- Login sets HttpOnly cookies on the API (`access_token`, `refresh_token`)
-- Frontend only keeps a presence cookie `hb_session=1` for route guards
-- Next middleware checks **session presence only** — it does **not** decode JWT roles
-- Admin pages still rely on API `403` + client `isAdmin` from `/api/auth/me`
+- HttpOnly cookies on the API; frontend only sets `hb_session=1` for route guards
+- Middleware checks session presence — does **not** decode JWT roles
 - Password minimum: **10 characters**
-- Forgot / reset password pages under `/auth/forgot-password` and `/auth/reset-password`
+- Forgot / reset under `/auth/forgot-password` and `/auth/reset-password`
 
 ---
 
@@ -45,27 +55,7 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=
 npm run dev
 ```
 
-App: `http://localhost:3000`
-
-Run the backend locally as well, and apply `migrations/001_auth_tokens.sql` on the database once.
-
----
-
-## Scripts
-
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Local development |
-| `npm run build` | Production build |
-| `npm start` | Serve production build |
-| `npm run lint` | ESLint |
-
----
-
-## Notes
-
-- Payments are still mock — do not treat Pay Now as real charges
-- This is a solo project (not a group deliverable)
+Also run the backend with Stripe test keys + `stripe listen` for webhooks. Apply backend migrations `001` and `002`.
 
 ---
 

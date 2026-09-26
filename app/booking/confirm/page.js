@@ -141,46 +141,34 @@ function RoomImageThumb({ images, roomType }) {
   );
 }
 
-// ── Mock Payment Modal ────────────────────────────────────
+// ── Payment Modal (Stripe Checkout + pay at hotel) ────────
 function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
   const [tab,        setTab]        = useState("card"); // "card" | "hotel"
   const [processing, setProcessing] = useState(false);
-  const [cardName,   setCardName]   = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry,     setExpiry]     = useState("");
-  const [cvv,        setCvv]        = useState("");
-
-  const formatCardNumber = (val) =>
-    val.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
-
-  const formatExpiry = (val) =>
-    val.replace(/\D/g, "").slice(0, 4).replace(/^(\d{2})(\d)/, "$1/$2");
 
   const handlePay = async () => {
-  setProcessing(true);
-  await new Promise(res => setTimeout(res, 1800));
-  try {
-    if (tab === "hotel") {
-      await onPayAtHotel();
-    } else {
-      await onPay();
+    setProcessing(true);
+    try {
+      if (tab === "hotel") {
+        await onPayAtHotel();
+      } else {
+        await onPay();
+      }
+    } catch {
+      setProcessing(false);
     }
-  } catch {
-    setProcessing(false);
-  }
-};
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative"
         onClick={e => e.stopPropagation()}>
 
-        {/* Modal header */}
         <div className="bg-[#1a56db] px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-bold text-lg">Complete Payment</h2>
-            <p className="text-blue-200 text-xs mt-0.5">Secure checkout</p>
+            <p className="text-blue-200 text-xs mt-0.5">Stripe sandbox checkout</p>
           </div>
           <div className="text-right">
             <p className="text-blue-200 text-xs">Total</p>
@@ -188,7 +176,6 @@ function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
           </div>
         </div>
 
-        {/* Processing overlay */}
         {processing && (
           <div className="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center rounded-2xl gap-4">
             <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
@@ -198,14 +185,15 @@ function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
               </svg>
             </div>
             <div className="text-center">
-              <p className="font-semibold text-gray-800">Processing payment...</p>
-              <p className="text-sm text-gray-400 mt-1">Please don't close this window</p>
+              <p className="font-semibold text-gray-800">
+                {tab === "card" ? "Redirecting to Stripe..." : "Confirming reservation..."}
+              </p>
+              <p className="text-sm text-gray-400 mt-1">Please don&apos;t close this window</p>
             </div>
           </div>
         )}
 
         <div className="p-6 relative">
-          {/* Tabs */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
             <button onClick={() => setTab("card")}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -214,7 +202,7 @@ function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
               </svg>
-              Credit Card
+              Pay online
             </button>
             <button onClick={() => setTab("hotel")}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -227,70 +215,30 @@ function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
             </button>
           </div>
 
-          {/* Credit card form */}
           {tab === "card" && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Name on Card</label>
-                <input
-                  type="text"
-                  value={cardName}
-                  onChange={e => setCardName(e.target.value)}
-                  placeholder="John Smith"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db]"
-                />
+            <div className="space-y-4 py-2">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-8 h-8 text-[#1a56db]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                </svg>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Card Number</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={e => setCardNumber(formatCardNumber(e.target.value))}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength={19}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] font-mono"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-                    <div className="w-6 h-4 bg-red-500 rounded-sm opacity-80"/>
-                    <div className="w-6 h-4 bg-yellow-400 rounded-sm opacity-80 -ml-2"/>
-                  </div>
-                </div>
+              <div className="text-center">
+                <p className="font-semibold text-gray-800">Secure card payment</p>
+                <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                  You will be redirected to Stripe Checkout. Card details never touch HotelBook servers.
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Expiry Date</label>
-                  <input
-                    type="text"
-                    value={expiry}
-                    onChange={e => setExpiry(formatExpiry(e.target.value))}
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">CVV</label>
-                  <input
-                    type="text"
-                    value={cvv}
-                    onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    placeholder="•••"
-                    maxLength={4}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a56db] font-mono"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-xl mt-1">
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-xl">
                 <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
-                <p className="text-xs text-green-700">Your payment info is encrypted and secure</p>
+                <p className="text-xs text-green-700">
+                  Sandbox test card: <span className="font-mono font-semibold">4242 4242 4242 4242</span> · any future expiry · any CVC
+                </p>
               </div>
             </div>
           )}
 
-          {/* Pay at hotel */}
           {tab === "hotel" && (
             <div className="py-4 text-center space-y-4">
               <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto">
@@ -320,7 +268,6 @@ function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
             </div>
           )}
 
-          {/* Pay button */}
           <button
             onClick={handlePay}
             disabled={processing}
@@ -329,7 +276,7 @@ function PaymentModal({ totalPrice, onClose, onPay, onPayAtHotel }) {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
-            {tab === "card" ? `Pay ฿${Number(totalPrice).toLocaleString()} Now` : "Confirm Reservation"}
+            {tab === "card" ? `Pay ฿${Number(totalPrice).toLocaleString()} with Stripe` : "Confirm Reservation"}
           </button>
 
           <button onClick={onClose} disabled={processing}
@@ -394,10 +341,9 @@ export default function BookingConfirmPage() {
     }
   };
 
-  // ── Reserve + pay immediately ──
+  // ── Reserve + pay via Stripe Checkout ──
   const handlePayNow = async () => {
     try {
-      // Step 1 — create booking
       const bookRes = await api.post("/api/bookings", {
         check_in_date,
         check_out_date,
@@ -406,16 +352,19 @@ export default function BookingConfirmPage() {
       });
       if (!bookRes.data.success) throw new Error(bookRes.data.message);
 
-      // Step 2 — pay immediately
-      const payRes = await api.patch(`/api/bookings/${bookRes.data.booking_id}/pay`);
-      if (!payRes.data.success) throw new Error(payRes.data.message);
+      const bookingId = bookRes.data.booking_id;
+      const checkoutRes = await api.post("/api/payments/checkout", {
+        booking_id: bookingId,
+      });
+      if (!checkoutRes.data.success || !checkoutRes.data.checkout_url) {
+        throw new Error(checkoutRes.data.message || "Could not start checkout");
+      }
 
-      toast.success("Payment successful! Booking confirmed 🎉");
       localStorage.removeItem("pendingBooking");
-      router.push("/my-bookings");
+      window.location.href = checkoutRes.data.checkout_url;
     } catch (err) {
       toast.error(err?.message || err.response?.data?.message || "Payment failed. Please try again.");
-      throw err; // let modal handle it
+      throw err;
     }
   };
 

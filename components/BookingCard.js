@@ -219,7 +219,7 @@ function buildReceiptHTML(booking, nights) {
   } = booking;
 
   const paymentLabel =
-    payment_status === "paid" ? "Paid (Credit Card)" :
+    payment_status === "paid" ? "Paid (Stripe)" :
     payment_status === "pay_at_hotel" ? "Pay at Hotel" :
     "Unpaid — Pay before check-in";
 

@@ -1,11 +1,27 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import BookingCard from "@/components/BookingCard";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 
 const TABS = ["all", "confirmed", "pending", "cancelled"];
+
+function PaymentReturnToast() {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const payment = searchParams.get("payment");
+    if (payment === "success") {
+      toast.success("Payment received. Your booking will confirm in a moment.");
+    } else if (payment === "cancelled") {
+      toast("Checkout cancelled. Your booking is still unpaid.");
+    }
+  }, [searchParams]);
+
+  return null;
+}
 
 export default function MyBookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -30,6 +46,18 @@ export default function MyBookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
+  // Refresh a few times after returning from Stripe so webhook can land
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") !== "success") return;
+
+    const timers = [2000, 5000, 10000].map((ms) =>
+      setTimeout(() => fetchBookings(), ms)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [fetchBookings]);
+
   const handleCancel = async (id) => {
     setCancellingId(id);
     try {
@@ -48,11 +76,12 @@ export default function MyBookingsPage() {
   const handlePay = async (id) => {
     setPayingId(id);
     try {
-      const res = await api.patch(`/api/bookings/${id}/pay`);
-      if (res.data.success) {
-        toast.success("Payment successful! 🎉");
-        fetchBookings();
+      const res = await api.post("/api/payments/checkout", { booking_id: id });
+      if (res.data.success && res.data.checkout_url) {
+        window.location.href = res.data.checkout_url;
+        return;
       }
+      toast.error(res.data.message || "Could not start checkout");
     } catch (err) {
       toast.error(err.response?.data?.message || "Payment failed");
     } finally {
@@ -71,6 +100,10 @@ export default function MyBookingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Suspense fallback={null}>
+        <PaymentReturnToast />
+      </Suspense>
+
       {/* Page header */}
       <div className="bg-[#1a56db] py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
